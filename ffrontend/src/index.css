@@ -1,0 +1,102 @@
+@import "tailwindcss";
+
+/* Tailwind v4 defaults `dark:` to the OS setting; drive it from the `.dark` class set by ThemeContext instead. */
+@custom-variant dark (&:where(.dark, .dark *));
+
+@theme {
+  --color-primary: #4f46e5;
+  --color-primary-hover: #4338ca;
+  --color-primary-light: #eef2ff;
+  --color-primary-dark: #312e81;
+
+  --color-secondary: #10b981;
+  --color-secondary-light: #ecfdf5;
+
+  --color-accent: #6366f1;
+  --color-sidebar-bg: #1e293b;
+  --color-sidebar-hover: #334155;
+
+  --color-page-bg: #f8fafc;
+  --color-card-bg: #ffffff;
+  --color-border-default: #e2e8f0;
+
+  --font-cairo: 'Cairo', -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-vietnam: 'Be Vietnam Pro', -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-inter: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-mono: 'JetBrains Mono', monospace;
+}
+
+/* Light mode (default) */
+body {
+  font-family: 'Cairo', 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  background-color: #f8fafc;
+  color: #0f172a;
+  margin: 0;
+  padding: 0;
+  direction: rtl;
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+/* Dark mode */
+.dark body {
+  background-color: #0f172a;
+  color: #f1f5f9;
+}
+
+.math-tex {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  direction: ltr;
+  display: inline-block;
+}
+
+/* Sleek custom scrollbars */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 9999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
+.dark ::-webkit-scrollbar-thumb {
+  background: #475569;
+}
+
+.dark ::-webkit-scrollbar-thumb:hover {
+  background: #64748b;
+}
+
+.custom-scrollbar::-webkit-scrollbar {
+  width: 5px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 9999px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
+.dark .custom-scrollbar::-webkit-scrollbar-thumb {
+  background: #475569;
+}
+
+.dark .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: #64748b;
+}

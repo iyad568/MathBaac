@@ -1,0 +1,6 @@
+{
+  "name": "MathBAC",
+  "description": "منصة تعليمية متكاملة لمادة الرياضيات لطلاب البكالوريا الجزائرية - DZ-BAC Math",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
