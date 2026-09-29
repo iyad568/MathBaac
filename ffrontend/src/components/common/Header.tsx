@@ -1,23 +1,23 @@
 import React, { useEffect, useState } from 'react';
 import { NavLink, useNavigate, useLocation } from 'react-router-dom';
 import { Bell, User, Menu, PlayCircle, Flame, ChevronLeft, ChevronRight, Moon, Sun, TrendingUp, Award, Target } from 'lucide-react';
-import { localStorageService } from '../../services/localStorageService';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
+import { useNextConcept } from '../../hooks/useNextConcept';
 
 interface HeaderProps {
   onOpenMobileMenu: () => void;
   streakDays?: number;
+  overallProgress?: number;
 }
 
-export const Header: React.FC<HeaderProps> = ({ onOpenMobileMenu, streakDays = 4 }) => {
+export const Header: React.FC<HeaderProps> = ({ onOpenMobileMenu, streakDays = 0, overallProgress = 0 }) => {
   const navigate = useNavigate();
   const location = useLocation();
   const { user: authUser } = useAuth();
   const { theme, toggleTheme } = useTheme();
-  const userStats = localStorageService.getUserStats();
-  const allProgress = localStorageService.getAllConceptProgress();
-  const currentProgress = userStats?.overallCourseProgress ?? 35;
+  const { nextConcept } = useNextConcept();
+  const currentProgress = overallProgress;
   
   // Animation for progress bar
   const [animatedProgress, setAnimatedProgress] = useState(0);
@@ -63,16 +63,6 @@ export const Header: React.FC<HeaderProps> = ({ onOpenMobileMenu, streakDays = 4
             <Sun className="w-5 h-5" />
           )}
         </button>
-      </div>
-
-      {/* Desktop: Logo/Brand Area (Left side) */}
-      <div className="hidden md:flex items-center gap-3 shrink-0">
-        <NavLink to="/dashboard" className="flex items-center gap-2 group">
-          <div className="w-9 h-9 bg-gradient-to-br from-indigo-500 to-indigo-600 dark:from-indigo-400 dark:to-indigo-500 rounded-xl flex items-center justify-center shadow-lg shadow-indigo-500/30 group-hover:scale-110 transition-transform">
-            <span className="text-white font-bold text-lg font-mono">Σ</span>
-          </div>
-          <h1 className="text-lg font-bold text-slate-800 dark:text-white tracking-tight">MathBAC</h1>
-        </NavLink>
       </div>
 
       {/* Centered Controls Container: Progress, Streak, Continue Lesson, Profile */}
@@ -127,14 +117,15 @@ export const Header: React.FC<HeaderProps> = ({ onOpenMobileMenu, streakDays = 4
           )}
         </div>
 
-        {/* Continue Lesson Button - Enhanced */}
+        {/* Continue Lesson Button - navigates to the real first unfinished concept */}
         <button
           type="button"
-          onClick={() => navigate('/concept/chain-rule')}
-          className="hidden sm:flex items-center gap-1.5 md:gap-2 bg-gradient-to-r from-indigo-600 to-indigo-700 hover:from-indigo-700 hover:to-indigo-800 dark:from-indigo-500 dark:to-indigo-600 dark:hover:from-indigo-600 dark:hover:to-indigo-700 text-white px-3 md:px-4 py-2 md:py-2.5 rounded-2xl text-xs md:text-sm font-bold shadow-lg shadow-indigo-600/30 dark:shadow-indigo-500/20 transition-all hover:scale-105 hover:shadow-xl cursor-pointer group"
+          onClick={() => navigate(nextConcept ? `/concept/${nextConcept.concept.id}` : '/mathematics')}
+          disabled={nextConcept === undefined}
+          className="hidden sm:flex items-center gap-1.5 md:gap-2 bg-gradient-to-r from-indigo-600 to-indigo-700 hover:from-indigo-700 hover:to-indigo-800 dark:from-indigo-500 dark:to-indigo-600 dark:hover:from-indigo-600 dark:hover:to-indigo-700 text-white px-3 md:px-4 py-2 md:py-2.5 rounded-2xl text-xs md:text-sm font-bold shadow-lg shadow-indigo-600/30 dark:shadow-indigo-500/20 transition-all hover:scale-105 hover:shadow-xl cursor-pointer group disabled:opacity-60 disabled:cursor-not-allowed disabled:hover:scale-100"
         >
           <PlayCircle className="w-4 h-4 md:w-5 md:h-5 group-hover:scale-110 transition-transform" />
-          <span>متابعة الدرس</span>
+          <span>{nextConcept ? 'متابعة الدرس' : 'تصفح المحاور'}</span>
           <ChevronLeft className="w-3 h-3 md:w-4 md:h-4 group-hover:-translate-x-1 transition-transform" />
         </button>
 

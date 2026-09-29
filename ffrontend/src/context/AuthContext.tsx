@@ -2,6 +2,7 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 import { AuthUser } from '../types';
 import { localStorageService } from '../services/localStorageService';
 import { authService } from '../services/authService';
+import { progressApiService } from '../services/progressApiService';
 import { AUTH_EXPIRED_EVENT, tokenStorage } from '../services/apiClient';
 
 interface AuthContextType {
@@ -41,6 +42,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     window.addEventListener(AUTH_EXPIRED_EVENT, logout);
     return () => window.removeEventListener(AUTH_EXPIRED_EVENT, logout);
   }, []);
+
+  // One-time push of lesson-completion flags recorded locally before progress was backend-tracked.
+  useEffect(() => {
+    if (user.isLoggedIn) {
+      progressApiService.migrateLocalLessonCompletions();
+    }
+  }, [user.isLoggedIn]);
 
   const login = async (email: string, password: string) => {
     const loggedUser = await authService.login(email, password);

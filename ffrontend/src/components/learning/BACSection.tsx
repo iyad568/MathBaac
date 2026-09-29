@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { GraduationCap, Award, Clock, CheckCircle2, ChevronDown, ChevronUp, FileSpreadsheet, Check, Eye } from 'lucide-react';
 import { BACExercise, StudentBACAttempt } from '../../types';
 import { MathRenderer } from '../common/MathRenderer';
@@ -9,6 +9,9 @@ interface BACSectionProps {
   onSubmitBAC: (attempt: StudentBACAttempt) => void;
   initialActiveBACId?: string;
 }
+
+const MIN_TRACKED_SECONDS = 1;
+const MAX_TRACKED_SECONDS = 60 * 60; // cap at 1h so leaving a tab open doesn't skew stats
 
 export const BACSection: React.FC<BACSectionProps> = ({
   bacExercises,
@@ -26,6 +29,10 @@ export const BACSection: React.FC<BACSectionProps> = ({
   const [studentNotes, setStudentNotes] = useState<Record<string, string>>({});
   const [awardedScoreMap] = useState<Record<string, number>>({});
 
+  // First-viewed timestamp per BAC problem, so "time spent" reflects how long the
+  // student actually had that problem open instead of a flat guess.
+  const startTimesRef = useRef<Record<string, number>>({});
+
   useEffect(() => {
     if (initialActiveBACId && bacExercises.some(b => b.id === initialActiveBACId)) {
       setActiveTab(initialActiveBACId);
@@ -41,6 +48,13 @@ export const BACSection: React.FC<BACSectionProps> = ({
   }, [bacAttempts]);
 
   const currentBAC = bacExercises.find(b => b.id === activeTab) || bacExercises[0];
+
+  useEffect(() => {
+    if (currentBAC && !startTimesRef.current[currentBAC.id]) {
+      startTimesRef.current[currentBAC.id] = Date.now();
+    }
+  }, [currentBAC?.id]);
+
   if (!currentBAC) return null;
 
   const currentAttempt = attemptsMap[currentBAC.id];
@@ -49,13 +63,18 @@ export const BACSection: React.FC<BACSectionProps> = ({
 
   const handleMarkBACComplete = () => {
     const score = awardedScoreMap[currentBAC.id] ?? (currentAttempt?.score || currentBAC.points);
+    const start = startTimesRef.current[currentBAC.id] ?? Date.now();
+    const elapsedSeconds = Math.min(
+      Math.max(Math.round((Date.now() - start) / 1000), MIN_TRACKED_SECONDS),
+      MAX_TRACKED_SECONDS
+    );
     const attempt: StudentBACAttempt = {
       bacExerciseId: currentBAC.id,
       conceptId: currentBAC.conceptId,
       completed: true,
       score,
       maxScore: currentBAC.points,
-      timeSpentSeconds: 900,
+      timeSpentSeconds: elapsedSeconds,
       completedAt: Date.now(),
     };
     onSubmitBAC(attempt);

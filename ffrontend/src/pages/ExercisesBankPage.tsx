@@ -1,12 +1,16 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FileText, Clock, CheckCircle2, Search, PlayCircle } from 'lucide-react';
+import { FileText, Clock, CheckCircle2, Search, PlayCircle, Lock } from 'lucide-react';
 import { useExercises } from '../hooks/useExercises';
+import { useUnlockedConcepts } from '../hooks/useUnlockedConcepts';
+import { useNextConcept } from '../hooks/useNextConcept';
 import { MathRenderer } from '../components/common/MathRenderer';
 
 export const ExercisesBankPage: React.FC = () => {
   const navigate = useNavigate();
-  const { exercises, attempts } = useExercises();
+  const { exercises, attempts, chapters, concepts } = useExercises();
+  const { unlockedConceptIds } = useUnlockedConcepts();
+  const { nextConcept } = useNextConcept();
   const [difficultyFilter, setDifficultyFilter] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState<string>('');
 
@@ -18,14 +22,43 @@ export const ExercisesBankPage: React.FC = () => {
     return map;
   }, [attempts]);
 
-  const filtered = exercises.filter(e => {
-    if (difficultyFilter !== 'all' && e.difficulty !== difficultyFilter) return false;
-    if (searchQuery.trim()) {
-      const q = searchQuery.toLowerCase();
-      return e.title.toLowerCase().includes(q) || e.question.toLowerCase().includes(q);
-    }
-    return true;
-  });
+  const chapterOrder = React.useMemo(() => {
+    const map: Record<string, number> = {};
+    chapters.forEach((c, idx) => { map[c.id] = idx; });
+    return map;
+  }, [chapters]);
+
+  const chapterTitleById = React.useMemo(() => {
+    const map: Record<string, string> = {};
+    chapters.forEach(c => { map[c.id] = c.title; });
+    return map;
+  }, [chapters]);
+
+  const conceptOrder = React.useMemo(() => {
+    const map: Record<string, number> = {};
+    concepts.forEach(c => { map[c.id] = c.order; });
+    return map;
+  }, [concepts]);
+
+  const filtered = exercises
+    .filter(e => {
+      if (difficultyFilter !== 'all' && e.difficulty !== difficultyFilter) return false;
+      if (searchQuery.trim()) {
+        const q = searchQuery.toLowerCase();
+        return e.title.toLowerCase().includes(q) || e.question.toLowerCase().includes(q);
+      }
+      return true;
+    })
+    .sort((a, b) => {
+      // Unlocked exercises come first, then grouped by chapter/concept in curriculum order.
+      const unlockedDiff = (unlockedConceptIds.has(b.conceptId) ? 1 : 0) - (unlockedConceptIds.has(a.conceptId) ? 1 : 0);
+      if (unlockedDiff !== 0) return unlockedDiff;
+      const chapterDiff = (chapterOrder[a.chapterId] ?? 0) - (chapterOrder[b.chapterId] ?? 0);
+      if (chapterDiff !== 0) return chapterDiff;
+      const conceptDiff = (conceptOrder[a.conceptId] ?? 0) - (conceptOrder[b.conceptId] ?? 0);
+      if (conceptDiff !== 0) return conceptDiff;
+      return a.number - b.number;
+    });
 
   const diffLabels: Record<string, { label: string; bg: string; text: string }> = {
     easy: { label: 'سهل', bg: 'bg-emerald-50 dark:bg-emerald-900/20 border-emerald-200 dark:border-emerald-800/60', text: 'text-emerald-700 dark:text-emerald-300' },
@@ -48,8 +81,9 @@ export const ExercisesBankPage: React.FC = () => {
         </div>
 
         <button
-          onClick={() => navigate('/concept/chain-rule?section=exercises#exercises-section')}
-          className="bg-indigo-600 text-white hover:bg-indigo-700 px-5 py-2.5 rounded-xl text-xs md:text-sm font-bold flex items-center gap-2 shadow-xs transition-all cursor-pointer self-start md:self-auto"
+          onClick={() => navigate(nextConcept ? `/concept/${nextConcept.concept.id}?section=exercises#exercises-section` : '/mathematics')}
+          disabled={nextConcept === undefined}
+          className="bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-60 px-5 py-2.5 rounded-xl text-xs md:text-sm font-bold flex items-center gap-2 shadow-xs transition-all cursor-pointer self-start md:self-auto"
         >
           <PlayCircle className="w-4 h-4" />
           <span>فتح تمرين المفهوم الحالي</span>
@@ -91,6 +125,39 @@ export const ExercisesBankPage: React.FC = () => {
         {filtered.map((ex) => {
           const isDone = attemptsMap[ex.id];
           const diff = diffLabels[ex.difficulty] || diffLabels.easy;
+          const isUnlocked = unlockedConceptIds.has(ex.conceptId);
+
+          if (!isUnlocked) {
+            return (
+              <div
+                key={ex.id}
+                className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl p-5 space-y-4 opacity-60 cursor-not-allowed flex flex-col justify-between"
+              >
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-mono font-bold text-slate-400 dark:text-slate-500 bg-slate-100 dark:bg-slate-800 px-2.5 py-0.5 rounded-md border border-slate-200 dark:border-slate-700">
+                      #{ex.number}
+                    </span>
+                    <span className={`text-[11px] font-bold px-2.5 py-0.5 rounded-full border ${diff.bg} ${diff.text}`}>
+                      {diff.label}
+                    </span>
+                  </div>
+                  <h2 className="font-bold text-base text-slate-500 dark:text-slate-400">
+                    {ex.title}
+                  </h2>
+                  <p className="text-xs text-slate-400 dark:text-slate-500">
+                    مقفل حتى تفتح درس هذا المفهوم أولاً
+                  </p>
+                </div>
+                <div className="pt-3 border-t border-slate-100 dark:border-slate-700 flex items-center justify-end text-xs">
+                  <span className="text-slate-400 dark:text-slate-500 font-bold flex items-center gap-1.5">
+                    <Lock className="w-3.5 h-3.5" />
+                    <span>مقفل</span>
+                  </span>
+                </div>
+              </div>
+            );
+          }
 
           return (
             <div
@@ -101,7 +168,7 @@ export const ExercisesBankPage: React.FC = () => {
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-mono font-bold text-indigo-700 dark:text-indigo-300 bg-indigo-50 dark:bg-indigo-900/20 px-2.5 py-0.5 rounded-md border border-indigo-100 dark:border-indigo-900/50">
-                    #{ex.number} • محور الاشتقاقية
+                    #{ex.number} • {chapterTitleById[ex.chapterId] ?? 'محور رياضي'}
                   </span>
                   <span className={`text-[11px] font-bold px-2.5 py-0.5 rounded-full border ${diff.bg} ${diff.text}`}>
                     {diff.label}

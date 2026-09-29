@@ -1,8 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FileText, PlayCircle, Clock, CheckCircle2, Loader2 } from 'lucide-react';
+import { FileText, PlayCircle, Clock, CheckCircle2, Loader2, Lock } from 'lucide-react';
 import { contentService } from '../services/contentService';
 import { testService } from '../services/testService';
+import { useUnlockedConcepts } from '../hooks/useUnlockedConcepts';
 import { TestResult } from '../types';
 import { chapters } from '../data/chapters';
 import { concepts } from '../data/concepts';
@@ -12,6 +13,16 @@ function chapterTitleForConcept(conceptId: string): string {
   const chapter = concept && chapters.find(c => c.id === concept.chapterId);
   return chapter?.title ?? 'محور رياضي';
 }
+
+const chapterOrderById: Record<string, number> = {};
+chapters.forEach((c, idx) => { chapterOrderById[c.id] = idx; });
+
+const conceptOrderById: Record<string, number> = {};
+const conceptChapterById: Record<string, string> = {};
+concepts.forEach((c) => {
+  conceptOrderById[c.id] = c.order;
+  conceptChapterById[c.id] = c.chapterId;
+});
 
 interface TestListItem {
   id: string;
@@ -26,6 +37,7 @@ export const TestsPage: React.FC = () => {
   const [testList, setTestList] = useState<TestListItem[]>([]);
   const [testResults, setTestResults] = useState<TestResult[]>([]);
   const [loading, setLoading] = useState(true);
+  const { unlockedConceptIds } = useUnlockedConcepts();
 
   useEffect(() => {
     Promise.all([testService.listTests(), contentService.getTestResults()])
@@ -43,6 +55,19 @@ export const TestsPage: React.FC = () => {
     });
     return map;
   }, [testResults]);
+
+  const sortedTestList = React.useMemo(() => {
+    return [...testList].sort((a, b) => {
+      // Unlocked tests come first, then grouped by chapter/concept in curriculum order.
+      const unlockedDiff = (unlockedConceptIds.has(b.conceptId) ? 1 : 0) - (unlockedConceptIds.has(a.conceptId) ? 1 : 0);
+      if (unlockedDiff !== 0) return unlockedDiff;
+      const chapterDiff =
+        (chapterOrderById[conceptChapterById[a.conceptId]] ?? 0) -
+        (chapterOrderById[conceptChapterById[b.conceptId]] ?? 0);
+      if (chapterDiff !== 0) return chapterDiff;
+      return (conceptOrderById[a.conceptId] ?? 0) - (conceptOrderById[b.conceptId] ?? 0);
+    });
+  }, [testList, unlockedConceptIds]);
 
   return (
     <div className="space-y-8 animate-fadeIn">
@@ -73,8 +98,42 @@ export const TestsPage: React.FC = () => {
       )}
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {testList.map((test) => {
+        {sortedTestList.map((test) => {
           const res = resultsMap[test.id];
+          const isUnlocked = unlockedConceptIds.has(test.conceptId);
+
+          if (!isUnlocked) {
+            return (
+              <div
+                key={test.id}
+                className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-3xl p-6 md:p-8 space-y-4 opacity-60 cursor-not-allowed flex flex-col justify-between"
+              >
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 px-3 py-1 rounded-full border border-slate-200 dark:border-slate-700">
+                      {chapterTitleForConcept(test.conceptId)}
+                    </span>
+                    <div className="flex items-center gap-1.5 text-xs text-slate-400 dark:text-slate-500 bg-slate-50 dark:bg-slate-800/60 px-2.5 py-1 rounded-lg border border-slate-200 dark:border-slate-700">
+                      <Clock className="w-3.5 h-3.5" />
+                      <span>{test.timeLimitMinutes} دقيقة</span>
+                    </div>
+                  </div>
+                  <h2 className="text-lg md:text-xl font-bold text-slate-500 dark:text-slate-400">
+                    {test.title}
+                  </h2>
+                  <p className="text-xs md:text-sm text-slate-400 dark:text-slate-500">
+                    مقفل حتى تفتح درس هذا المفهوم أولاً
+                  </p>
+                </div>
+                <div className="pt-4 border-t border-slate-100 dark:border-slate-700 flex items-center justify-end">
+                  <span className="text-xs font-bold text-slate-400 dark:text-slate-500 flex items-center gap-1.5">
+                    <Lock className="w-3.5 h-3.5" />
+                    <span>مقفل</span>
+                  </span>
+                </div>
+              </div>
+            );
+          }
 
           return (
             <div

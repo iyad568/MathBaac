@@ -29,6 +29,14 @@ async def list_mini_tests(db: AsyncSession) -> list[MiniTest]:
     return list(result.scalars().all())
 
 
+async def get_mini_test_concept_ids(db: AsyncSession, concept_ids: list[str]) -> set[str]:
+    """Subset of concept_ids that have a mini-test, one query instead of one per concept."""
+    if not concept_ids:
+        return set()
+    result = await db.execute(select(MiniTest.concept_id).where(MiniTest.concept_id.in_(concept_ids)))
+    return {row[0] for row in result.all()}
+
+
 async def update_mini_test(db: AsyncSession, test: MiniTest, data: dict) -> MiniTest:
     for field, value in data.items():
         setattr(test, field, value)
@@ -144,3 +152,18 @@ async def list_results(db: AsyncSession, user_id: int, concept_id: Optional[str]
     query = query.order_by(TestResult.completed_at.desc())
     result = await db.execute(query)
     return list(result.scalars().all())
+
+
+async def list_results_for_concepts(
+    db: AsyncSession, user_id: int, concept_ids: list[str]
+) -> dict[str, list[TestResult]]:
+    """One query for every concept's results, instead of one query per concept."""
+    if not concept_ids:
+        return {}
+    result = await db.execute(
+        select(TestResult).where(TestResult.user_id == user_id, TestResult.concept_id.in_(concept_ids))
+    )
+    grouped: dict[str, list[TestResult]] = {}
+    for row in result.scalars().all():
+        grouped.setdefault(row.concept_id, []).append(row)
+    return grouped

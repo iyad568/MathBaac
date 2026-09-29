@@ -1,6 +1,6 @@
 from typing import Optional
 
-from sqlalchemy import select
+from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.modules.quizzes.models import QuizQuestion, QuizSubmission
@@ -103,3 +103,32 @@ async def list_submissions(db: AsyncSession, user_id: int, concept_id: Optional[
     query = query.order_by(QuizSubmission.submitted_at.desc())
     result = await db.execute(query)
     return list(result.scalars().all())
+
+
+async def get_latest_submissions_for_concepts(
+    db: AsyncSession, user_id: int, concept_ids: list[str]
+) -> dict[str, QuizSubmission]:
+    """One query for every concept's latest submission, instead of one query per concept."""
+    if not concept_ids:
+        return {}
+    result = await db.execute(
+        select(QuizSubmission)
+        .where(QuizSubmission.user_id == user_id, QuizSubmission.concept_id.in_(concept_ids))
+        .order_by(QuizSubmission.submitted_at.desc())
+    )
+    latest: dict[str, QuizSubmission] = {}
+    for submission in result.scalars().all():
+        latest.setdefault(submission.concept_id, submission)  # first seen per concept = latest (desc order)
+    return latest
+
+
+async def count_questions_by_concepts(db: AsyncSession, concept_ids: list[str]) -> dict[str, int]:
+    """One query for whether each concept has any quiz questions, instead of one per concept."""
+    if not concept_ids:
+        return {}
+    result = await db.execute(
+        select(QuizQuestion.concept_id, func.count())
+        .where(QuizQuestion.concept_id.in_(concept_ids))
+        .group_by(QuizQuestion.concept_id)
+    )
+    return dict(result.all())

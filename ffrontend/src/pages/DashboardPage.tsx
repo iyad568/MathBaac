@@ -9,32 +9,19 @@ import {
   PlayCircle,
   Sparkles,
   ChevronLeft,
-  BarChart3,
-  Award,
-  TrendingUp,
-  BrainCircuit,
-  CheckCheck,
-  FileText,
   MessageSquare,
   Users
 } from 'lucide-react';
 import { useProgress } from '../hooks/useProgress';
-import { chapters } from '../data/chapters';
+import { useNextConcept } from '../hooks/useNextConcept';
 
 export const DashboardPage: React.FC = () => {
   const navigate = useNavigate();
-  const { userStats, chapterProgressList } = useProgress();
-
-  // Active main chapter (Derivatives)
-  const activeChapter = chapters.find(c => c.id === 'derivatives') || chapters[1] || chapters[0];
-  const derivativesProgress = chapterProgressList.find(p => p.chapterId === 'derivatives');
+  const { userStats, chapters, chapterProgressList } = useProgress();
+  const { nextConcept } = useNextConcept();
 
   // Filter out diagnostic chapter for the main curriculum stats
   const academicChapters = chapters.filter(c => c.id !== 'diagnostic');
-
-  // Calculate predicted BAC score based on mastery
-  const overallProgress = userStats?.overallCourseProgress ?? 0;
-  const predictedScore = Math.min(20, Math.max(10, 10 + (overallProgress / 100) * 9.5)).toFixed(1);
 
   return (
     <div className="space-y-8 animate-fadeIn">
@@ -45,7 +32,7 @@ export const DashboardPage: React.FC = () => {
           <div className="space-y-3 max-w-2xl">
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/15 text-white text-xs font-bold backdrop-blur-xs border border-white/20">
               <Sparkles className="w-3.5 h-3.5 text-emerald-300" />
-              <span>مادة الرياضيات • بكالوريا 2025</span>
+              <span>مادة الرياضيات • بكالوريا 2026</span>
             </div>
 
             <h1 className="text-2xl md:text-4xl font-extrabold tracking-tight text-white">
@@ -53,17 +40,22 @@ export const DashboardPage: React.FC = () => {
             </h1>
 
             <p className="text-sm md:text-base text-indigo-100 leading-relaxed font-normal">
-              أنت تدرس الآن محور: <strong>{activeChapter.title}</strong>. واصل حل التمارين وتطبيقات قاعدة السلسلة للتحضير للبكالوريا في الرياضيات.
+              {nextConcept === null
+                ? 'أحسنت! لقد أكملت كل محاور ومفاهيم البرنامج بنسبة 100%. راجع دروسك أو انتقل إلى بنك التمارين لتثبيت مكتسباتك.'
+                : nextConcept
+                ? <>أنت تدرس الآن محور: <strong>{nextConcept.chapterTitle}</strong>. واصل دراسة مفهوم "{nextConcept.concept.title}" للتحضير للبكالوريا في الرياضيات.</>
+                : 'جارِ تحميل تقدمك الدراسي...'}
             </p>
 
             <div className="pt-2 flex flex-wrap items-center gap-3">
               <button
                 type="button"
-                onClick={() => navigate('/concept/chain-rule')}
-                className="bg-white text-indigo-700 hover:bg-slate-50 px-6 py-3 rounded-xl text-sm font-bold shadow-md transition-all flex items-center gap-2 cursor-pointer"
+                onClick={() => navigate(nextConcept ? `/concept/${nextConcept.concept.id}` : '/mathematics')}
+                disabled={nextConcept === undefined}
+                className="bg-white text-indigo-700 hover:bg-slate-50 disabled:opacity-60 px-6 py-3 rounded-xl text-sm font-bold shadow-md transition-all flex items-center gap-2 cursor-pointer"
               >
                 <PlayCircle className="w-4 h-4 fill-current" />
-                <span>مواصلة دراسة: مشتق الدالة المركبة</span>
+                <span>{nextConcept ? `مواصلة دراسة: ${nextConcept.concept.title}` : 'تصفح المحاور'}</span>
               </button>
 
               <button
@@ -92,7 +84,6 @@ export const DashboardPage: React.FC = () => {
           <div className="text-2xl font-extrabold font-mono text-slate-900 dark:text-slate-100">
             {userStats?.totalStudyTimeMinutes ?? 0} <span className="text-sm font-normal text-slate-500 dark:text-slate-400">دقيقة</span>
           </div>
-          <span className="text-[11px] text-emerald-600 dark:text-emerald-400 font-bold block">+18 دقيقة اليوم</span>
         </div>
 
         {/* Exercises Solved */}
@@ -142,84 +133,6 @@ export const DashboardPage: React.FC = () => {
       {/* INTEGRATED FULL STATISTICS & PROGRESS MODULE */}
       {/* ========================================================================= */}
       <div className="space-y-6 pt-2">
-        <div className="flex items-center justify-between">
-          <div className="space-y-1">
-            <h2 className="text-xl md:text-2xl font-extrabold text-slate-900 dark:text-slate-100 flex items-center gap-2.5">
-              <BarChart3 className="w-6 h-6 text-indigo-600 dark:text-indigo-400" />
-              <span>لوحة الإحصائيات الشاملة ومتابعة التقدم الفعلي</span>
-            </h2>
-            <p className="text-xs md:text-sm text-slate-500 dark:text-slate-400">
-              تحليل دقيق لنسبة الاستيعاب الرياضي بناءً على الأوزان البيداغوجية الرسمية
-            </p>
-          </div>
-        </div>
-
-        {/* Top 3 Analytical Indicators */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          {/* Overall Curriculum Mastery */}
-          <div className="bg-gradient-to-br from-indigo-50 dark:from-indigo-900/20 to-indigo-100/60 dark:to-indigo-900/30 p-6 rounded-3xl border border-indigo-200 space-y-4">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-bold text-indigo-900">نسبة التقدم العام في المنهاج</span>
-              <Award className="w-5 h-5 text-indigo-600" />
-            </div>
-            <div className="flex items-baseline gap-2">
-              <span className="text-3xl md:text-4xl font-extrabold font-mono text-indigo-600">
-                {overallProgress}%
-              </span>
-              <span className="text-xs text-indigo-700 font-semibold">من البرنامج السنوي</span>
-            </div>
-            <div className="w-full h-2.5 bg-white/80 rounded-full overflow-hidden">
-              <div
-                className="h-full bg-indigo-600 rounded-full transition-all duration-500"
-                style={{ width: `${overallProgress}%` }}
-              />
-            </div>
-            <p className="text-[11px] text-indigo-800">
-              محسوبة بناءً على الدروس، الكويزات، التمارين التدريبية ومسائل البكالوريا.
-            </p>
-          </div>
-
-          {/* Predicted BAC Math Score */}
-          <div className="bg-gradient-to-br from-emerald-50 dark:from-emerald-900/20 to-emerald-100/60 dark:to-emerald-900/30 p-6 rounded-3xl border border-emerald-200 space-y-4">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-bold text-emerald-900">معدل البكالوريا المتوقع</span>
-              <TrendingUp className="w-5 h-5 text-emerald-600" />
-            </div>
-            <div className="flex items-baseline gap-2">
-              <span className="text-3xl md:text-4xl font-extrabold font-mono text-emerald-700">
-                {predictedScore}
-              </span>
-              <span className="text-sm font-bold text-slate-500">/ 20</span>
-            </div>
-            <p className="text-[11px] text-emerald-800">
-              يرتفع هذا التقدير مع إتمامك لمسائل البكالوريا السابقة وحل الاختبارات المؤقتة.
-            </p>
-          </div>
-
-          {/* Practice Accuracy & Speed */}
-          <div className="bg-gradient-to-br from-amber-50 dark:from-amber-900/20 to-amber-100/60 dark:to-amber-900/30 p-6 rounded-3xl border border-amber-200 space-y-4">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-bold text-amber-900">دقة الإجابات والاستيعاب</span>
-              <BrainCircuit className="w-5 h-5 text-amber-600" />
-            </div>
-            <div className="flex items-baseline gap-2">
-              <span className="text-3xl md:text-4xl font-extrabold font-mono text-amber-800">
-                {userStats?.averageAccuracy ?? 0}%
-              </span>
-              <span className="text-xs text-amber-700 font-semibold">معدل الدقة الأكاديمية</span>
-            </div>
-            <div className="w-full h-2.5 bg-white/80 rounded-full overflow-hidden">
-              <div
-                className="h-full bg-amber-500 rounded-full transition-all duration-500"
-                style={{ width: `${userStats?.averageAccuracy ?? 0}%` }}
-              />
-            </div>
-            <p className="text-[11px] text-amber-800">
-              أداء ممتاز في أسئلة الفهم وقاعدة السلسلة واشتقاق الدوال المركبة.
-            </p>
-          </div>
-        </div>
-
         {/* Semester Units Detailed Progress Breakdown */}
         <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-700 p-6 md:p-8 space-y-6 shadow-sm transition-colors duration-300">
           <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-4">
@@ -287,65 +200,6 @@ export const DashboardPage: React.FC = () => {
           </div>
         </div>
 
-        {/* 5 Pedagogical Pillars Breakdown */}
-        <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-700 p-6 md:p-8 space-y-6 shadow-sm transition-colors duration-300">
-          <div className="space-y-1">
-            <h3 className="text-lg font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2">
-              <CheckCheck className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
-              <span>معايير التقييم البيداغوجي المعتمدة (الأوزان الرسمية)</span>
-            </h3>
-            <p className="text-xs text-slate-500 dark:text-slate-400">
-              توزيع احتساب نسبة الإتقان لكل مفهوم في المنصة:
-            </p>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-3 pt-1">
-            <div className="p-4 bg-slate-50 dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 text-center space-y-1.5 transition-colors duration-300">
-              <div className="w-8 h-8 rounded-xl bg-indigo-100 text-indigo-700 flex items-center justify-center mx-auto">
-                <PlayCircle className="w-4 h-4" />
-              </div>
-              <span className="text-xs font-bold text-slate-800 block">الدروس والشرح</span>
-              <span className="text-lg font-extrabold font-mono text-indigo-600 block">20%</span>
-              <span className="text-[10px] text-slate-500">فيديو وملخص نظري</span>
-            </div>
-
-            <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200 text-center space-y-1.5">
-              <div className="w-8 h-8 rounded-xl bg-amber-100 text-amber-700 flex items-center justify-center mx-auto">
-                <BrainCircuit className="w-4 h-4" />
-              </div>
-              <span className="text-xs font-bold text-slate-800 block">كويز الفهم</span>
-              <span className="text-lg font-extrabold font-mono text-amber-600 block">15%</span>
-              <span className="text-[10px] text-slate-500">أسئلة تصحيح فوري</span>
-            </div>
-
-            <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200 text-center space-y-1.5">
-              <div className="w-8 h-8 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center mx-auto">
-                <CheckCircle2 className="w-4 h-4" />
-              </div>
-              <span className="text-xs font-bold text-slate-800 block">التمارين التدريبية</span>
-              <span className="text-lg font-extrabold font-mono text-emerald-600 block">30%</span>
-              <span className="text-[10px] text-slate-500">حلول خطوة بخطوة</span>
-            </div>
-
-            <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200 text-center space-y-1.5">
-              <div className="w-8 h-8 rounded-xl bg-blue-100 text-blue-700 flex items-center justify-center mx-auto">
-                <GraduationCap className="w-4 h-4" />
-              </div>
-              <span className="text-xs font-bold text-slate-800 block">مسائل البكالوريا</span>
-              <span className="text-lg font-extrabold font-mono text-blue-600 block">20%</span>
-              <span className="text-[10px] text-slate-500">سلم التنقيط الوزاري</span>
-            </div>
-
-            <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200 text-center space-y-1.5">
-              <div className="w-8 h-8 rounded-xl bg-purple-100 text-purple-700 flex items-center justify-center mx-auto">
-                <FileText className="w-4 h-4" />
-              </div>
-              <span className="text-xs font-bold text-slate-800 block">الاختبارات المؤقتة</span>
-              <span className="text-lg font-extrabold font-mono text-purple-600 block">15%</span>
-              <span className="text-[10px] text-slate-500">تقييم شامل على 20</span>
-            </div>
-          </div>
-        </div>
       </div>
 
       {/* Community Section Teaser */}

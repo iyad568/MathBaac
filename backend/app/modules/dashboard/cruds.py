@@ -2,6 +2,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
 from app.modules.dashboard.models import StudyStreak, UserActivity
 from app.modules.dashboard.schemas import UserActivityCreate
+from app.modules.quizzes.models import QuizSubmission
+from app.modules.tests.models import TestResult
 from datetime import datetime, date
 from typing import Optional
 
@@ -90,7 +92,21 @@ async def get_dashboard_data(db: AsyncSession, user_id: int) -> dict:
             )
         )
     ).scalar() or 0
-    total_study_minutes = round(int(activity_seconds) / 60)
+    quiz_seconds = (
+        await db.execute(
+            select(func.coalesce(func.sum(QuizSubmission.time_spent_seconds), 0)).where(
+                QuizSubmission.user_id == user_id
+            )
+        )
+    ).scalar() or 0
+    test_seconds = (
+        await db.execute(
+            select(func.coalesce(func.sum(TestResult.time_spent_seconds), 0)).where(
+                TestResult.user_id == user_id
+            )
+        )
+    ).scalar() or 0
+    total_study_minutes = round((int(activity_seconds) + int(quiz_seconds) + int(test_seconds)) / 60)
 
     activity_exercises = (
         await db.execute(

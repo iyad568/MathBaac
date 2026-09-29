@@ -63,12 +63,37 @@ async def get_chapter_progress(
     return await services.compute_chapter_progress(db, current_user.id, chapter_id)
 
 
+@router.get("/chapter/{chapter_id}/concepts", response_model=list[ConceptProgressResponse])
+async def get_chapter_concepts_progress(
+    chapter_id: str,
+    db: AsyncSession = Depends(get_db),
+    current_user=Depends(get_current_user),
+):
+    """Progress for every concept in a chapter in one batched call, instead of
+    the frontend firing one request per concept."""
+    progress_by_concept = await services.compute_all_concepts_progress_for_chapter(
+        db, current_user.id, chapter_id
+    )
+    return list(progress_by_concept.values())
+
+
 @router.get("/stats", response_model=UserStudyStatsResponse)
 async def get_user_stats(
     db: AsyncSession = Depends(get_db),
     current_user=Depends(get_current_user),
 ):
     return await services.compute_user_stats(db, current_user)
+
+
+@router.post("/reset")
+async def reset_progress(
+    db: AsyncSession = Depends(get_db),
+    current_user=Depends(get_current_user),
+):
+    """Wipes all of the current user's progress data (lesson completions, quiz/test
+    results, exercise/BAC activity, streak) — irreversible."""
+    await services.reset_all_progress(db, current_user.id)
+    return {"message": "تمت إعادة ضبط كافة بيانات التقدم بنجاح"}
 
 
 # ==================== NEW CONCEPT PROGRESS ENDPOINTS ====================

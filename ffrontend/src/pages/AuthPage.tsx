@@ -96,14 +96,14 @@ export const AuthPage: React.FC = () => {
       <div className="w-full max-w-md space-y-6 relative z-10 animate-fadeIn">
         {/* Brand Header */}
         <div className="text-center space-y-3">
-          <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-gradient-to-tr from-indigo-600 to-indigo-500 text-white font-mono font-extrabold text-3xl shadow-xl shadow-indigo-600/30 border border-indigo-400/20">
-            Σ
+          <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl overflow-hidden shadow-xl shadow-indigo-600/30 border border-indigo-400/20">
+            <img src="/logo.webp" alt="MathBAC" className="w-full h-full object-cover" />
           </div>
           <div>
             <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-white flex items-center justify-center gap-2">
               <span>MathBAC</span>
               <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
-                2025
+                2026
               </span>
             </h1>
             <p className="text-xs sm:text-sm text-slate-400 mt-1">
@@ -274,7 +274,7 @@ export const AuthPage: React.FC = () => {
         {/* Security & Official Badge */}
         <div className="flex items-center justify-center gap-2 text-[11px] text-slate-500">
           <ShieldCheck className="w-4 h-4 text-emerald-500" />
-          <span>منصة مطابقة لمنهاج البكالوريا الجزائرية الرسمية 2025</span>
+          <span>منصة مطابقة لمنهاج البكالوريا الجزائرية الرسمية 2026</span>
         </div>
       </div>
     </div>

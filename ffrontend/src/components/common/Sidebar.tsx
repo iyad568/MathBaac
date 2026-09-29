@@ -10,7 +10,6 @@ import {
   Sparkles,
   ChevronDown,
   ChevronUp,
-  PlayCircle,
   LogOut,
   MessageSquare,
   ShieldCheck,
@@ -81,8 +80,8 @@ export const Sidebar: React.FC<SidebarProps> = ({ mobileOpen = false, onCloseMob
             onClick={onCloseMobile}
             className="flex items-center gap-3 group"
           >
-            <div className="w-8 h-8 bg-indigo-500 rounded-lg flex items-center justify-center shadow-md shadow-indigo-500/30 group-hover:scale-105 transition-transform">
-              <span className="text-white font-bold text-xl font-mono">Σ</span>
+            <div className="w-8 h-8 rounded-lg overflow-hidden shadow-md shadow-indigo-500/30 group-hover:scale-105 transition-transform shrink-0">
+              <img src="/logo.webp" alt="MathBAC" className="w-full h-full object-cover" />
             </div>
             <h1 className="text-white font-bold text-xl tracking-tight">MathBAC</h1>
           </NavLink>
@@ -311,17 +310,6 @@ export const Sidebar: React.FC<SidebarProps> = ({ mobileOpen = false, onCloseMob
               <Settings className="w-3.5 h-3.5" />
               <span>الإعدادات</span>
             </NavLink>
-
-            <button
-              onClick={() => {
-                if (onCloseMobile) onCloseMobile();
-                navigate('/concept/chain-rule');
-              }}
-              className="flex items-center gap-1.5 text-indigo-400 hover:text-indigo-300 font-medium py-1 px-2 rounded-md hover:bg-indigo-950/40 cursor-pointer"
-            >
-              <PlayCircle className="w-3.5 h-3.5" />
-              <span>الدرس</span>
-            </button>
           </div>
         </div>
       </aside>

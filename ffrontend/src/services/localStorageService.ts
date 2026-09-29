@@ -47,6 +47,20 @@ const STORAGE_KEYS = {
   AUTH_USER: 'dzbac_auth_session_v1'
 };
 
+// Neutral zeroed stats for a student with no recorded activity yet — never
+// fabricated demo numbers, since this is what shows before the real backend
+// stats have loaded (or if they can't be reached).
+const EMPTY_USER_STATS = (): UserStudyStats => ({
+  totalStudyTimeMinutes: 0,
+  streakDays: 0,
+  lastStudyDate: '',
+  completedLessonsCount: 0,
+  solvedExercisesCount: 0,
+  solvedBacCount: 0,
+  averageAccuracy: 0,
+  overallCourseProgress: 0,
+  stream: 'شعبة العلوم التجريبية',
+});
 
 class LocalStorageService {
   constructor() {
@@ -122,18 +136,7 @@ class LocalStorageService {
       localStorage.setItem(STORAGE_KEYS.WEIGHTS_CONFIG, JSON.stringify(DEFAULT_PROGRESS_WEIGHTS));
     }
     if (!localStorage.getItem(STORAGE_KEYS.USER_STATS)) {
-      const initialStats: UserStudyStats = {
-        totalStudyTimeMinutes: 54,
-        streakDays: 4,
-        lastStudyDate: new Date().toISOString().split('T')[0],
-        completedLessonsCount: 1,
-        solvedExercisesCount: 3,
-        solvedBacCount: 1,
-        averageAccuracy: 88,
-        overallCourseProgress: 24,
-        stream: 'شعبة العلوم التجريبية',
-      };
-      localStorage.setItem(STORAGE_KEYS.USER_STATS, JSON.stringify(initialStats));
+      localStorage.setItem(STORAGE_KEYS.USER_STATS, JSON.stringify(EMPTY_USER_STATS()));
     }
   }
 
@@ -462,32 +465,12 @@ class LocalStorageService {
   public getUserStats(): UserStudyStats {
     const raw = localStorage.getItem(STORAGE_KEYS.USER_STATS);
     if (!raw) {
-      return {
-        totalStudyTimeMinutes: 54,
-        streakDays: 4,
-        lastStudyDate: new Date().toISOString().split('T')[0],
-        completedLessonsCount: 1,
-        solvedExercisesCount: 3,
-        solvedBacCount: 1,
-        averageAccuracy: 88,
-        overallCourseProgress: 24,
-        stream: 'شعبة العلوم التجريبية',
-      };
+      return EMPTY_USER_STATS();
     }
     try {
       return JSON.parse(raw);
     } catch {
-      return {
-        totalStudyTimeMinutes: 54,
-        streakDays: 4,
-        lastStudyDate: new Date().toISOString().split('T')[0],
-        completedLessonsCount: 1,
-        solvedExercisesCount: 3,
-        solvedBacCount: 1,
-        averageAccuracy: 88,
-        overallCourseProgress: 24,
-        stream: 'شعبة العلوم التجريبية',
-      };
+      return EMPTY_USER_STATS();
     }
   }
 

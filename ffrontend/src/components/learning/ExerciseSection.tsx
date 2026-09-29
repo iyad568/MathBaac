@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { FileText, Clock, CheckCircle2, XCircle, ChevronDown, ChevronUp, HelpCircle, Sparkles, Send } from 'lucide-react';
+import React, { useRef, useState } from 'react';
+import { FileText, Clock, CheckCircle2, XCircle, ChevronDown, ChevronUp, HelpCircle, Sparkles, Send, Lock } from 'lucide-react';
 import { Exercise, StudentExerciseAttempt } from '../../types';
 import { MathRenderer } from '../common/MathRenderer';
 
@@ -8,6 +8,9 @@ interface ExerciseSectionProps {
   attempts: StudentExerciseAttempt[];
   onSubmitExercise: (attempt: StudentExerciseAttempt) => void;
 }
+
+const MIN_TRACKED_SECONDS = 1;
+const MAX_TRACKED_SECONDS = 30 * 60; // cap a single exercise at 30 min so a tab left open overnight doesn't skew stats
 
 export const ExerciseSection: React.FC<ExerciseSectionProps> = ({
   exercises,
@@ -19,6 +22,24 @@ export const ExerciseSection: React.FC<ExerciseSectionProps> = ({
   const [showSolutionMap, setShowSolutionMap] = useState<Record<string, boolean>>({});
   const [feedbackMap, setFeedbackMap] = useState<Record<string, { isCorrect: boolean; message: string }>>({});
 
+  // First-interaction timestamp per exercise, so we can report real elapsed time
+  // instead of a flat guess — falls back to section-mount time for exercises the
+  // student never actively touched (e.g. straight to "mark as read").
+  const sectionMountTime = useRef<number>(Date.now());
+  const startTimesRef = useRef<Record<string, number>>({});
+
+  const markStarted = (exerciseId: string) => {
+    if (!startTimesRef.current[exerciseId]) {
+      startTimesRef.current[exerciseId] = Date.now();
+    }
+  };
+
+  const getElapsedSeconds = (exerciseId: string): number => {
+    const start = startTimesRef.current[exerciseId] ?? sectionMountTime.current;
+    const elapsed = Math.round((Date.now() - start) / 1000);
+    return Math.min(Math.max(elapsed, MIN_TRACKED_SECONDS), MAX_TRACKED_SECONDS);
+  };
+
   const attemptsMap = React.useMemo(() => {
     const map: Record<string, StudentExerciseAttempt> = {};
     attempts.forEach(a => {
@@ -27,12 +48,36 @@ export const ExerciseSection: React.FC<ExerciseSectionProps> = ({
     return map;
   }, [attempts]);
 
+  // Exercises unlock one at a time, in order — an exercise not reached yet
+  // (previous one not solved) is locked, same progression rule as chapters/concepts.
+  const sortedExercises = React.useMemo(
+    () => [...exercises].sort((a, b) => a.number - b.number),
+    [exercises]
+  );
+  const unlockedIds = React.useMemo(() => {
+    const set = new Set<string>();
+    let previousSolved = true;
+    for (const ex of sortedExercises) {
+      if (previousSolved) set.add(ex.id);
+      previousSolved = !!attemptsMap[ex.id]?.isCorrect;
+    }
+    return set;
+  }, [sortedExercises, attemptsMap]);
+  const previousExerciseTitle = React.useMemo(() => {
+    const map: Record<string, string> = {};
+    sortedExercises.forEach((ex, idx) => {
+      if (idx > 0) map[ex.id] = sortedExercises[idx - 1].title;
+    });
+    return map;
+  }, [sortedExercises]);
+
   const filteredExercises = exercises.filter(e => {
     if (selectedDifficulty === 'all') return true;
     return e.difficulty === selectedDifficulty;
   });
 
   const handleInputChange = (exerciseId: string, val: string) => {
+    markStarted(exerciseId);
     setInputs(prev => ({
       ...prev,
       [exerciseId]: val,
@@ -71,7 +116,7 @@ export const ExerciseSection: React.FC<ExerciseSectionProps> = ({
       studentAnswer: userVal,
       isCorrect: !!isCorrect,
       attemptNumber: (attemptsMap[exercise.id]?.attemptNumber || 0) + 1,
-      timeSpentSeconds: 120,
+      timeSpentSeconds: getElapsedSeconds(exercise.id),
       completedAt: Date.now(),
     };
 
@@ -88,7 +133,7 @@ export const ExerciseSection: React.FC<ExerciseSectionProps> = ({
       studentAnswer: '',
       isCorrect: true,
       attemptNumber: (attemptsMap[exercise.id]?.attemptNumber || 0) + 1,
-      timeSpentSeconds: 120,
+      timeSpentSeconds: getElapsedSeconds(exercise.id),
       completedAt: Date.now(),
     });
   };
@@ -155,6 +200,36 @@ export const ExerciseSection: React.FC<ExerciseSectionProps> = ({
           const diff = difficultyMeta[exercise.difficulty] || difficultyMeta.easy;
           const feedback = feedbackMap[exercise.id];
           const isAutoGraded = !!exercise.correctAnswer;
+          const isUnlocked = unlockedIds.has(exercise.id);
+
+          if (!isUnlocked) {
+            return (
+              <div
+                key={exercise.id}
+                className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-700 overflow-hidden shadow-xs opacity-60"
+              >
+                <div className="p-5 md:p-6 flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-3">
+                    <span className="w-8 h-8 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-500 flex items-center justify-center border border-slate-200 dark:border-slate-700">
+                      <Lock className="w-4 h-4" />
+                    </span>
+                    <div>
+                      <h3 className="text-base md:text-lg font-bold text-slate-500 dark:text-slate-400">
+                        {exercise.title}
+                      </h3>
+                      <span className="text-xs text-slate-400 dark:text-slate-500">
+                        مقفل حتى تحل تمرين "{previousExerciseTitle[exercise.id] ?? ''}" أولاً
+                      </span>
+                    </div>
+                  </div>
+                  <span className="text-xs font-bold text-slate-400 dark:text-slate-500 flex items-center gap-1.5 shrink-0">
+                    <Lock className="w-3.5 h-3.5" />
+                    <span>مقفل</span>
+                  </span>
+                </div>
+              </div>
+            );
+          }
 
           return (
             <div

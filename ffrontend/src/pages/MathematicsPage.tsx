@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { BookOpen, FileText, GraduationCap, ChevronLeft } from 'lucide-react';
+import { BookOpen, FileText, GraduationCap, ChevronLeft, Lock } from 'lucide-react';
 import { useChapters } from '../hooks/useChapters';
 
 export const MathematicsPage: React.FC = () => {
   const navigate = useNavigate();
   const { chapters, progressMap } = useChapters();
+  const [lockedNotice, setLockedNotice] = useState<string | null>(null);
 
   return (
     <div className="space-y-8 animate-fadeIn">
@@ -20,24 +21,53 @@ export const MathematicsPage: React.FC = () => {
         </p>
       </div>
 
+      {lockedNotice && (
+        <div className="p-3.5 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800/60 rounded-xl text-amber-800 dark:text-amber-300 text-xs md:text-sm font-bold flex items-center gap-2">
+          <Lock className="w-4 h-4 shrink-0" />
+          <span>{lockedNotice}</span>
+        </div>
+      )}
+
       {/* Chapters Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {chapters.map((ch) => {
+        {chapters.map((ch, idx) => {
           const prog = progressMap[ch.id];
-          const mastery = prog?.averageMasteryPercentage || (ch.id === 'derivatives' ? 35 : 0);
+          const mastery = prog?.averageMasteryPercentage ?? 0;
+          const previousChapter = idx > 0 ? chapters[idx - 1] : undefined;
+          const previousMastery = previousChapter ? progressMap[previousChapter.id]?.averageMasteryPercentage ?? 0 : 100;
+          const isUnlocked = idx === 0 || previousMastery >= 100;
+
+          const handleOpen = () => {
+            if (!isUnlocked) {
+              setLockedNotice(`أكمل محور "${previousChapter?.title ?? ''}" بنسبة 100% أولاً لفتح هذا المحور.`);
+              return;
+            }
+            setLockedNotice(null);
+            navigate(`/mathematics/${ch.id}`);
+          };
 
           return (
             <div
               key={ch.id}
-              onClick={() => navigate(`/mathematics/${ch.id}`)}
-              className="bg-white dark:bg-slate-900 hover:bg-slate-50/70 border border-slate-200 dark:border-slate-700 hover:border-indigo-300 dark:hover:border-indigo-700 rounded-2xl p-5 md:p-6 space-y-4 transition-all cursor-pointer group shadow-xs"
+              onClick={handleOpen}
+              className={`bg-white dark:bg-slate-900 border rounded-2xl p-5 md:p-6 space-y-4 transition-all group shadow-xs ${
+                isUnlocked
+                  ? 'hover:bg-slate-50/70 dark:hover:bg-slate-800/60 border-slate-200 dark:border-slate-700 hover:border-indigo-300 dark:hover:border-indigo-700 cursor-pointer'
+                  : 'border-slate-200 dark:border-slate-700 opacity-60 cursor-not-allowed'
+              }`}
             >
               <div className="space-y-3">
                 <div className="flex items-center gap-3">
-                  <span className="w-9 h-9 rounded-xl bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 dark:text-indigo-400 font-mono font-extrabold text-sm flex items-center justify-center border border-indigo-100 dark:border-indigo-900/50 shrink-0">
-                    0{ch.order}
+                  <span className={`w-9 h-9 rounded-xl font-mono font-extrabold text-sm flex items-center justify-center border shrink-0 ${
+                    isUnlocked
+                      ? 'bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 dark:text-indigo-400 border-indigo-100 dark:border-indigo-900/50'
+                      : 'bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-500 border-slate-200 dark:border-slate-700'
+                  }`}>
+                    {isUnlocked ? `0${ch.order}` : <Lock className="w-4 h-4" />}
                   </span>
-                  <h2 className="text-base md:text-lg font-bold text-slate-900 dark:text-slate-100 group-hover:text-indigo-600 transition-colors">
+                  <h2 className={`text-base md:text-lg font-bold transition-colors ${
+                    isUnlocked ? 'text-slate-900 dark:text-slate-100 group-hover:text-indigo-600' : 'text-slate-500 dark:text-slate-400'
+                  }`}>
                     {ch.title}
                   </h2>
                 </div>
@@ -80,10 +110,17 @@ export const MathematicsPage: React.FC = () => {
                 </div>
 
                 <div className="flex items-center justify-between pt-0.5">
-                  <span className="text-xs font-bold text-indigo-600 dark:text-indigo-400 group-hover:underline flex items-center gap-1">
-                    <span>فتح محتويات ومفاهيم المحور</span>
-                    <ChevronLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
-                  </span>
+                  {isUnlocked ? (
+                    <span className="text-xs font-bold text-indigo-600 dark:text-indigo-400 group-hover:underline flex items-center gap-1">
+                      <span>فتح محتويات ومفاهيم المحور</span>
+                      <ChevronLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
+                    </span>
+                  ) : (
+                    <span className="text-xs font-bold text-slate-400 dark:text-slate-500 flex items-center gap-1.5">
+                      <Lock className="w-3.5 h-3.5" />
+                      <span>مقفل حتى إكمال المحور السابق</span>
+                    </span>
+                  )}
                 </div>
               </div>
             </div>

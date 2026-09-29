@@ -17,6 +17,20 @@ from app.modules.tests.models import TestResult
 
 # ==================== LESSON COMPLETION ====================
 
+async def get_lesson_completions_for_concepts(
+    db: AsyncSession, user_id: int, concept_ids: List[str]
+) -> dict:
+    """One query for every concept's lesson-completion row, instead of one query per concept."""
+    if not concept_ids:
+        return {}
+    result = await db.execute(
+        select(LessonCompletion).where(
+            LessonCompletion.user_id == user_id, LessonCompletion.concept_id.in_(concept_ids)
+        )
+    )
+    return {row.concept_id: row for row in result.scalars().all()}
+
+
 async def get_lesson_completion(db: AsyncSession, user_id: int, concept_id: str) -> Optional[LessonCompletion]:
     result = await db.execute(
         select(LessonCompletion).where(

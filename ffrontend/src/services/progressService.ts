@@ -26,64 +26,64 @@ export class ProgressService {
 
     // 1. Lesson Completion (20%)
     const lessonCompleted = existingProgress?.lessonCompleted ?? false;
-    const lessonScorePortion = lessonCompleted ? weights.lessonCompletedWeight * 100 : 0;
 
     // 2. Quiz Completion & Performance (15%)
     let quizCompleted = false;
     let quizScore = 0;
     const quizTotal = quizQuestions.length;
-    let quizScorePortion = 0;
     if (quizSubmission && quizTotal > 0) {
       quizCompleted = true;
       quizScore = quizSubmission.score;
-      // Proportional score
-      const quizRatio = Math.min(1, quizScore / quizTotal);
-      quizScorePortion = quizRatio * weights.quizCompletedWeight * 100;
     }
 
     // 3. Exercises Completion & Accuracy (30%)
     const exercisesTotalCount = allExercises.length;
     const solvedExercises = exerciseAttempts.filter(a => a.isCorrect);
     const exercisesSolvedCount = solvedExercises.length;
-    let exercisesAccuracy = 0;
-    let exercisesScorePortion = 0;
-    if (exercisesTotalCount > 0) {
-      const completionRatio = Math.min(1, exercisesSolvedCount / exercisesTotalCount);
-      exercisesAccuracy = exerciseAttempts.length > 0
-        ? Math.round((solvedExercises.length / exerciseAttempts.length) * 100)
-        : 0;
-      exercisesScorePortion = completionRatio * weights.exercisesCompletedWeight * 100;
-    }
+    const exercisesAccuracy = exerciseAttempts.length > 0
+      ? Math.round((solvedExercises.length / exerciseAttempts.length) * 100)
+      : 0;
 
     // 4. BAC Exercises Solved (20%)
     const bacExercisesTotalCount = allBac.length;
     const solvedBac = bacAttempts.filter(a => a.completed);
     const bacExercisesSolvedCount = solvedBac.length;
-    let bacScorePortion = 0;
-    if (bacExercisesTotalCount > 0) {
-      const bacRatio = Math.min(1, bacExercisesSolvedCount / bacExercisesTotalCount);
-      bacScorePortion = bacRatio * weights.bacCompletedWeight * 100;
-    }
 
     // 5. Mini Test Completed (15%)
     let miniTestCompleted = false;
     let miniTestScore = 0;
     let miniTestTotal = 10;
-    let miniTestScorePortion = 0;
     if (testResults.length > 0) {
       const bestResult = testResults.sort((a, b) => b.score - a.score)[0];
       miniTestCompleted = true;
       miniTestScore = bestResult.score;
       miniTestTotal = bestResult.totalQuestions;
-      const testRatio = Math.min(1, miniTestScore / miniTestTotal);
-      miniTestScorePortion = testRatio * weights.miniTestCompletedWeight * 100;
     }
 
-    // Sum overall weighted percentage (0 - 100)
-    const overallPercentage = Math.min(
-      100,
-      Math.round(lessonScorePortion + quizScorePortion + exercisesScorePortion + bacScorePortion + miniTestScorePortion)
-    );
+    // Weights only apply to components the concept actually HAS content for — a
+    // concept with e.g. no official BAC problems must not be permanently capped
+    // below 100%, so its weight is redistributed across the applicable components
+    // instead of just being lost.
+    const components: { weight: number; ratio: number }[] = [
+      { weight: weights.lessonCompletedWeight, ratio: lessonCompleted ? 1 : 0 },
+    ];
+    if (quizTotal > 0) {
+      components.push({ weight: weights.quizCompletedWeight, ratio: quizCompleted ? Math.min(1, quizScore / quizTotal) : 0 });
+    }
+    if (exercisesTotalCount > 0) {
+      components.push({ weight: weights.exercisesCompletedWeight, ratio: Math.min(1, exercisesSolvedCount / exercisesTotalCount) });
+    }
+    if (bacExercisesTotalCount > 0) {
+      components.push({ weight: weights.bacCompletedWeight, ratio: Math.min(1, bacExercisesSolvedCount / bacExercisesTotalCount) });
+    }
+    if (miniTestTotal > 0) {
+      components.push({ weight: weights.miniTestCompletedWeight, ratio: miniTestCompleted ? Math.min(1, miniTestScore / miniTestTotal) : 0 });
+    }
+
+    const totalWeight = components.reduce((sum, c) => sum + c.weight, 0);
+    const overallPercentage = totalWeight > 0
+      ? Math.min(100, Math.round((components.reduce((sum, c) => sum + c.weight * c.ratio, 0) / totalWeight) * 100))
+      : 0;
 
     // Calculate time spent
     const totalTimeSpentSeconds = (existingProgress?.totalTimeSpentSeconds ?? 0) + 

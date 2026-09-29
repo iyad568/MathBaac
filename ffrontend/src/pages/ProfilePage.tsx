@@ -1,6 +1,6 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Settings, PlayCircle, LogOut, Mail } from 'lucide-react';
+import { Settings, LogOut, Mail } from 'lucide-react';
 import { localStorageService } from '../services/localStorageService';
 import { useAuth } from '../context/AuthContext';
 
@@ -23,9 +23,9 @@ export const ProfilePage: React.FC = () => {
           </div>
           <div className="space-y-1 text-center sm:text-right">
             <h1 className="text-xl md:text-2xl font-extrabold text-slate-900 dark:text-slate-100">
-              {authUser?.fullName || 'طالب بكالوريا 2025'}
+              {authUser?.fullName || 'طالب بكالوريا 2026'}
             </h1>
-            <p className="text-xs md:text-sm text-indigo-600 dark:text-indigo-400 font-bold">مادة الرياضيات — بكالوريا 2025</p>
+            <p className="text-xs md:text-sm text-indigo-600 dark:text-indigo-400 font-bold">مادة الرياضيات — بكالوريا 2026</p>
             <p className="text-xs text-slate-500 dark:text-slate-400 flex items-center justify-center sm:justify-start gap-1.5 pt-0.5">
               <Mail className="w-3.5 h-3.5" />
               <span>{authUser?.email || 'student@dzbac.edu'}</span>
@@ -50,15 +50,6 @@ export const ProfilePage: React.FC = () => {
 
         <div className="flex flex-wrap items-center justify-between gap-3 pt-4 border-t border-slate-100 dark:border-slate-700">
           <div className="flex items-center gap-3">
-            <button
-              type="button"
-              onClick={() => navigate('/concept/chain-rule')}
-              className="bg-indigo-600 text-white hover:bg-indigo-700 px-5 py-2.5 rounded-xl text-xs md:text-sm font-bold flex items-center gap-2 transition-all cursor-pointer shadow-xs"
-            >
-              <PlayCircle className="w-4 h-4" />
-              <span>مواصلة الدرس الحالي</span>
-            </button>
-
             <button
               type="button"
               onClick={handleLogout}

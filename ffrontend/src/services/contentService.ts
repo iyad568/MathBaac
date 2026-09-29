@@ -22,6 +22,8 @@ import { progressService } from './progressService';
 import { quizService } from './quizService';
 import { exerciseService } from './exerciseService';
 import { testService } from './testService';
+import { curriculumService } from './curriculumService';
+import { progressApiService } from './progressApiService';
 import { apiClient, tokenStorage } from './apiClient';
 
 interface ActivityPayload {
@@ -32,15 +34,6 @@ interface ActivityPayload {
   time_spent_seconds?: number;
 }
 
-interface DashboardResponse {
-  current_streak: number;
-  last_study_date: string | null;
-  total_study_time_minutes: number;
-  solved_exercises_count: number;
-  solved_bac_count: number;
-  average_accuracy: number;
-}
-
 export class ContentService {
   // Best-effort: the local progress is the source of truth for the UI, so a backend failure must not block it.
   private logActivity(payload: ActivityPayload): void {
@@ -48,37 +41,40 @@ export class ContentService {
     apiClient.post('/dashboard/activity', payload).catch(() => {});
   }
 
-  // Subjects
+  // Subjects, chapters, concepts and lessons all come from the backend now —
+  // the curriculum content that was imported into MySQL earlier this session.
   public getSubjects(): Promise<Subject[]> {
-    return Promise.resolve(localStorageService.getSubjects());
+    return curriculumService.getSubjects();
   }
 
   // Chapters
   public getChapters(): Promise<Chapter[]> {
-    return Promise.resolve(localStorageService.getChapters());
+    return curriculumService.getChapters();
   }
 
   public getChapter(chapterId: string): Promise<Chapter | undefined> {
-    return Promise.resolve(localStorageService.getChapterById(chapterId));
+    return curriculumService.getChapter(chapterId);
   }
 
   // Concepts
   public getConcepts(chapterId?: string): Promise<Concept[]> {
-    return Promise.resolve(localStorageService.getConcepts(chapterId));
+    return curriculumService.getConcepts(chapterId);
   }
 
   public getConcept(conceptId: string): Promise<Concept | undefined> {
-    return Promise.resolve(localStorageService.getConceptById(conceptId));
+    return curriculumService.getConcept(conceptId);
   }
 
   // Lessons
   public getLesson(conceptId: string): Promise<Lesson | undefined> {
-    return Promise.resolve(localStorageService.getLesson(conceptId));
+    return curriculumService.getLesson(conceptId);
   }
 
-  public markLessonComplete(conceptId: string, chapterId: string): Promise<ConceptProgress> {
-    const res = progressService.markLessonCompleted(conceptId, chapterId);
-    return Promise.resolve(res);
+  public async markLessonComplete(conceptId: string, chapterId: string): Promise<ConceptProgress> {
+    if (tokenStorage.getAccess()) {
+      progressApiService.markLessonComplete(conceptId).catch(() => {});
+    }
+    return progressService.markLessonCompleted(conceptId, chapterId);
   }
 
   // Quizzes — questions and grading come from the backend; only the derived
@@ -183,39 +179,83 @@ export class ContentService {
     }
   }
 
-  // Progress
-  public getConceptProgress(conceptId: string, chapterId: string): Promise<ConceptProgress> {
+  // Progress — the backend computes this live from real submitted data (quiz
+  // submissions, test results, lesson completions, exercise activity), so it's
+  // the source of truth whenever the student is logged in.
+  public async getConceptProgress(conceptId: string, chapterId: string): Promise<ConceptProgress> {
+    if (tokenStorage.getAccess()) {
+      try {
+        const progress = await progressApiService.getConceptProgress(conceptId);
+        localStorageService.saveConceptProgress(progress);
+        return progress;
+      } catch {
+        // fall through to local
+      }
+    }
     let cp = localStorageService.getConceptProgress(conceptId);
     if (!cp) {
       cp = progressService.calculateConceptProgress(conceptId, chapterId);
     }
-    return Promise.resolve(cp);
+    return cp;
   }
 
-  public getChapterProgress(chapterId: string): Promise<ChapterProgress> {
-    return Promise.resolve(progressService.getChapterProgress(chapterId));
+  /** All of a chapter's concepts' progress in one call, instead of one call per concept. */
+  public async getConceptsProgressForChapter(chapterId: string): Promise<ConceptProgress[]> {
+    if (tokenStorage.getAccess()) {
+      try {
+        const progressList = await progressApiService.getConceptsProgressForChapter(chapterId);
+        progressList.forEach((cp) => localStorageService.saveConceptProgress(cp));
+        return progressList;
+      } catch {
+        // fall through to local
+      }
+    }
+    const concepts = await curriculumService.getConcepts(chapterId);
+    return concepts.map((c) => {
+      let cp = localStorageService.getConceptProgress(c.id);
+      if (!cp) {
+        cp = progressService.calculateConceptProgress(c.id, chapterId);
+      }
+      return cp;
+    });
   }
 
-  // Streak, study time and solved counts come from the backend; course progress and lessons stay local
-  // because the curriculum is static frontend data.
+  public async getChapterProgress(chapterId: string): Promise<ChapterProgress> {
+    if (tokenStorage.getAccess()) {
+      try {
+        return await progressApiService.getChapterProgress(chapterId);
+      } catch {
+        // fall through to local
+      }
+    }
+    return progressService.getChapterProgress(chapterId);
+  }
+
   public async getUserStats(): Promise<UserStudyStats> {
     const local = localStorageService.getUserStats();
     if (!tokenStorage.getAccess()) return local;
     try {
-      const server = await apiClient.get<DashboardResponse>('/dashboard/');
-      const merged: UserStudyStats = {
-        ...local,
-        totalStudyTimeMinutes: server.total_study_time_minutes,
-        streakDays: server.current_streak,
-        lastStudyDate: server.last_study_date ?? local.lastStudyDate,
-        solvedExercisesCount: server.solved_exercises_count,
-        solvedBacCount: server.solved_bac_count,
-        averageAccuracy: Math.round(server.average_accuracy),
-      };
+      const server = await progressApiService.getUserStats();
+      const merged: UserStudyStats = { ...local, ...server };
       localStorageService.saveUserStats(merged);
       return merged;
     } catch {
       return local;
+    }
+  }
+
+  /** Resets everything — backend progress when logged in, plus the local cache. Irreversible.
+   * localStorageService.resetAllData() clears localStorage wholesale, which would also wipe the
+   * auth tokens and silently log the student out — so those are saved and restored around it. */
+  public async resetAllProgress(): Promise<void> {
+    if (tokenStorage.getAccess()) {
+      await progressApiService.resetAllProgress();
+    }
+    const access = tokenStorage.getAccess();
+    const refresh = tokenStorage.getRefresh();
+    localStorageService.resetAllData();
+    if (access) {
+      tokenStorage.set(access, refresh);
     }
   }
 }

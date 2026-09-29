@@ -1,12 +1,16 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { GraduationCap, Clock, PlayCircle, ArrowLeft, Search, Filter, CheckCircle2 } from 'lucide-react';
+import { GraduationCap, Clock, PlayCircle, ArrowLeft, Search, Filter, CheckCircle2, Lock } from 'lucide-react';
 import { contentService } from '../services/contentService';
+import { useUnlockedConcepts } from '../hooks/useUnlockedConcepts';
+import { useNextConcept } from '../hooks/useNextConcept';
 import { MathRenderer } from '../components/common/MathRenderer';
-import { BACExercise, StudentBACAttempt } from '../types';
+import { BACExercise, StudentBACAttempt, Chapter, Concept } from '../types';
 
 export const BACLibraryPage: React.FC = () => {
   const navigate = useNavigate();
+  const { unlockedConceptIds } = useUnlockedConcepts();
+  const { nextConcept } = useNextConcept();
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedChapter, setSelectedChapter] = useState<string>('all');
   const [selectedYear, setSelectedYear] = useState<string>('all');
@@ -15,11 +19,27 @@ export const BACLibraryPage: React.FC = () => {
 
   const [bacExercisesList, setBacExercisesList] = useState<BACExercise[]>([]);
   const [bacAttempts, setBacAttempts] = useState<StudentBACAttempt[]>([]);
+  const [chaptersList, setChaptersList] = useState<Chapter[]>([]);
+  const [conceptsList, setConceptsList] = useState<Concept[]>([]);
 
   useEffect(() => {
     contentService.getBACExercises().then(setBacExercisesList);
     contentService.getBACAttempts().then(setBacAttempts);
+    contentService.getChapters().then(setChaptersList);
+    contentService.getConcepts().then(setConceptsList);
   }, []);
+
+  const chapterOrder = useMemo(() => {
+    const map: Record<string, number> = {};
+    chaptersList.forEach((c, idx) => { map[c.id] = idx; });
+    return map;
+  }, [chaptersList]);
+
+  const conceptOrder = useMemo(() => {
+    const map: Record<string, number> = {};
+    conceptsList.forEach(c => { map[c.id] = c.order; });
+    return map;
+  }, [conceptsList]);
 
   const attemptsMap = useMemo(() => {
     const map: Record<string, boolean> = {};
@@ -55,25 +75,36 @@ export const BACLibraryPage: React.FC = () => {
   ];
 
   const filtered = useMemo(() => {
-    return bacExercisesList.filter((bac: BACExercise) => {
-      if (selectedChapter !== 'all' && bac.chapterId !== selectedChapter) return false;
-      if (selectedYear !== 'all' && bac.year.toString() !== selectedYear) return false;
-      if (selectedStream !== 'all' && !bac.stream.includes(selectedStream.replace('شعبة ', ''))) return false;
-      if (statusFilter === 'completed' && !attemptsMap[bac.id]) return false;
-      if (statusFilter === 'pending' && attemptsMap[bac.id]) return false;
+    return bacExercisesList
+      .filter((bac: BACExercise) => {
+        if (selectedChapter !== 'all' && bac.chapterId !== selectedChapter) return false;
+        if (selectedYear !== 'all' && bac.year.toString() !== selectedYear) return false;
+        if (selectedStream !== 'all' && !bac.stream.includes(selectedStream.replace('شعبة ', ''))) return false;
+        if (statusFilter === 'completed' && !attemptsMap[bac.id]) return false;
+        if (statusFilter === 'pending' && attemptsMap[bac.id]) return false;
 
-      if (searchQuery.trim()) {
-        const q = searchQuery.toLowerCase();
-        const matchesTitle = bac.title.toLowerCase().includes(q);
-        const matchesQuestion = bac.question.toLowerCase().includes(q);
-        const matchesYear = bac.year.toString().includes(q);
-        const matchesStream = bac.stream.toLowerCase().includes(q);
-        const matchesChapter = (chapterNameMap[bac.chapterId] || '').toLowerCase().includes(q);
-        return matchesTitle || matchesQuestion || matchesYear || matchesStream || matchesChapter;
-      }
-      return true;
-    });
-  }, [bacExercisesList, selectedChapter, selectedYear, selectedStream, statusFilter, searchQuery, attemptsMap]);
+        if (searchQuery.trim()) {
+          const q = searchQuery.toLowerCase();
+          const matchesTitle = bac.title.toLowerCase().includes(q);
+          const matchesQuestion = bac.question.toLowerCase().includes(q);
+          const matchesYear = bac.year.toString().includes(q);
+          const matchesStream = bac.stream.toLowerCase().includes(q);
+          const matchesChapter = (chapterNameMap[bac.chapterId] || '').toLowerCase().includes(q);
+          return matchesTitle || matchesQuestion || matchesYear || matchesStream || matchesChapter;
+        }
+        return true;
+      })
+      .sort((a, b) => {
+        // Unlocked problems come first, then grouped by chapter/concept in curriculum order.
+        const unlockedDiff = (unlockedConceptIds.has(b.conceptId) ? 1 : 0) - (unlockedConceptIds.has(a.conceptId) ? 1 : 0);
+        if (unlockedDiff !== 0) return unlockedDiff;
+        const chapterDiff = (chapterOrder[a.chapterId] ?? 0) - (chapterOrder[b.chapterId] ?? 0);
+        if (chapterDiff !== 0) return chapterDiff;
+        const conceptDiff = (conceptOrder[a.conceptId] ?? 0) - (conceptOrder[b.conceptId] ?? 0);
+        if (conceptDiff !== 0) return conceptDiff;
+        return b.year - a.year;
+      });
+  }, [bacExercisesList, selectedChapter, selectedYear, selectedStream, statusFilter, searchQuery, attemptsMap, unlockedConceptIds, chapterOrder, conceptOrder]);
 
   const completedCount = Object.keys(attemptsMap).length;
   const totalPoints = bacExercisesList.reduce((acc, b) => acc + (b.points || 0), 0);
@@ -101,8 +132,9 @@ export const BACLibraryPage: React.FC = () => {
         </div>
 
         <button
-          onClick={() => navigate('/concept/chain-rule?section=bac#bac-section')}
-          className="bg-indigo-600 text-white hover:bg-indigo-700 px-5 py-2.5 rounded-xl text-xs md:text-sm font-bold flex items-center gap-2 shadow-xs transition-all cursor-pointer self-start md:self-auto"
+          onClick={() => navigate(nextConcept ? `/concept/${nextConcept.concept.id}?section=bac#bac-section` : '/mathematics')}
+          disabled={nextConcept === undefined}
+          className="bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-60 px-5 py-2.5 rounded-xl text-xs md:text-sm font-bold flex items-center gap-2 shadow-xs transition-all cursor-pointer self-start md:self-auto"
         >
           <PlayCircle className="w-4 h-4" />
           <span>تطبيق بكالوريا المفهوم الحالي</span>
@@ -278,6 +310,41 @@ export const BACLibraryPage: React.FC = () => {
         ) : (
           filtered.map((bac: BACExercise) => {
             const isDone = attemptsMap[bac.id];
+            const isUnlocked = unlockedConceptIds.has(bac.conceptId);
+
+            if (!isUnlocked) {
+              return (
+                <div
+                  key={bac.id}
+                  className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-3xl p-6 md:p-8 space-y-4 opacity-60 cursor-not-allowed"
+                >
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    <div className="flex items-center gap-3">
+                      <span className="w-12 h-12 rounded-2xl bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-500 flex items-center justify-center border border-slate-200 dark:border-slate-700">
+                        <Lock className="w-5 h-5" />
+                      </span>
+                      <div>
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="text-xs font-bold bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 px-2.5 py-0.5 rounded-md font-mono">
+                            {bac.year}
+                          </span>
+                          <span className="text-xs font-bold bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 px-2.5 py-0.5 rounded-md border border-slate-200 dark:border-slate-700">
+                            {chapterNameMap[bac.chapterId] || bac.chapterId}
+                          </span>
+                        </div>
+                        <h2 className="font-bold text-base md:text-lg text-slate-500 dark:text-slate-400 mt-1.5">
+                          {bac.title}
+                        </h2>
+                      </div>
+                    </div>
+                    <span className="text-xs font-bold text-slate-400 dark:text-slate-500 flex items-center gap-1.5 shrink-0">
+                      <Lock className="w-3.5 h-3.5" />
+                      <span>مقفل حتى تفتح درس هذا المفهوم أولاً</span>
+                    </span>
+                  </div>
+                </div>
+              );
+            }
 
             return (
               <div

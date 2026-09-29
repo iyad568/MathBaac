@@ -52,7 +52,7 @@ export const CompletionSection: React.FC<CompletionSectionProps> = ({
       </div>
 
       {/* Metric Cards Grid */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4 max-w-2xl mx-auto">
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-3 md:gap-4 max-w-4xl mx-auto">
         <div className="bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-2xs space-y-1">
           <span className="text-xs font-bold text-slate-500 dark:text-slate-400">النسبة الشاملة</span>
           <div className="text-xl md:text-2xl font-mono font-extrabold text-indigo-600 dark:text-indigo-400">
@@ -72,6 +72,16 @@ export const CompletionSection: React.FC<CompletionSectionProps> = ({
         </div>
 
         <div className="bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-2xs space-y-1">
+          <span className="text-xs font-bold text-slate-500 dark:text-slate-400">كويز الفهم</span>
+          <div className="text-xl md:text-2xl font-mono font-extrabold text-slate-900 dark:text-slate-100">
+            {progress?.quizScore ?? 0} / {progress?.quizTotal ?? 10}
+          </div>
+          <span className="text-[11px] text-slate-500 dark:text-slate-400 font-medium">
+            {progress?.quizCompleted ? 'تم الإنجاز' : 'لم يُنجز بعد'}
+          </span>
+        </div>
+
+        <div className="bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-2xs space-y-1">
           <span className="text-xs font-bold text-slate-500 dark:text-slate-400">مسائل البكالوريا</span>
           <div className="text-xl md:text-2xl font-mono font-extrabold text-slate-900 dark:text-slate-100">
             {progress?.bacExercisesSolvedCount ?? 0} / {progress?.bacExercisesTotalCount ?? 2}
@@ -82,7 +92,7 @@ export const CompletionSection: React.FC<CompletionSectionProps> = ({
         <div className="bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-2xs space-y-1">
           <span className="text-xs font-bold text-slate-500 dark:text-slate-400">الاختبار القصير</span>
           <div className="text-xl md:text-2xl font-mono font-extrabold text-slate-900 dark:text-slate-100">
-            {progress?.miniTestScore ?? 0} / 10
+            {progress?.miniTestScore ?? 0} / {progress?.miniTestTotal ?? 5}
           </div>
           <span className="text-[11px] text-slate-500 dark:text-slate-400 font-medium">تقييم شامل</span>
         </div>
